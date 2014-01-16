@@ -1,0 +1,167 @@
+***** SSL Versions *****
+SSLv2 is considered insecure; SSLv3 and TLSv1 are.
+
+***** Server/client certificates *****
+SSl protocol usually requires the server to present its certificate to peers;
+it is optional for client. A server can request a certificate from a client.
+
+In theory, when a server asks a certificate from a client, it should present a list of valid CAs.
+The client sends a certificate only if it determines that at least one of the CAs is valid.
+
+***** Default openssl directory *****
+/etc/pki/tls
+
+***** Certificates *****
+# Create a self signed root CA:
+[root@mgr openssl]# openssl genrsa 1024 > rootkey.pem
+Generating RSA private key, 1024 bit long modulus
+.....++++++
+........++++++
+e is 65537 (0x10001)
+[root@mgr openssl]# openssl req -new -x509 -nodes -days 365 -key rootkey.pem -out rootcert.pem
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [XX]:US
+State or Province Name (full name) []:VA
+Locality Name (eg, city) [Default City]:Fairfax
+Organization Name (eg, company) [Default Company Ltd]:Zork.org
+Organizational Unit Name (eg, section) []:zork
+Common Name (eg, your name or your server's hostname) []:Root CA                                    <=======================
+Email Address []:yichi.lu@sungard.com
+[root@mgr openssl]# cat rootcert.pem rootkey.pem > root.pem
+[root@mgr openssl]# openssl x509 -subject -issuer -noout -in root.pem
+subject= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=zork/CN=Root CA/emailAddress=yichi.lu@sungard.com
+issuer= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=zork/CN=Root CA/emailAddress=yichi.lu@sungard.com
+
+# Create a server CA:
+[root@mgr openssl]# openssl genrsa 1024 > serverCAkey.pem
+Generating RSA private key, 1024 bit long modulus
+.++++++
+.......++++++
+e is 65537 (0x10001)
+[root@mgr openssl]# openssl req -new -x509 -nodes -days 365 -key serverCAkey.pem -out serverCAcert.pem
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [XX]:US
+State or Province Name (full name) []:VA
+Locality Name (eg, city) [Default City]:Fairfax
+Organization Name (eg, company) [Default Company Ltd]:Zork.org
+Organizational Unit Name (eg, section) []:server
+Common Name (eg, your name or your server's hostname) []:Server CA                                   <==========================
+Email Address []:yichi.lu@sungard.com
+[root@mgr openssl]# cat serverCAcert.pem serverCAkey.pem rootcert.pem > serverCA.pem
+[root@mgr openssl]# openssl x509 -subject -issuer -noout -in serverCA.pem
+subject= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=server/CN=Server CA/emailAddress=yichi.lu@sungard.com
+issuer= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=server/CN=Server CA/emailAddress=yichi.lu@sungard.com
+
+# Create a server certificate and sign it using Server CA:
+[root@mgr openssl]# openssl req -newkey rsa:1024 -days 365 -nodes -keyout serverkey.pem -out serverreq.pem
+Generating a 1024 bit RSA private key
+....................................++++++
+.................................++++++
+writing new private key to 'serverkey.pem'
+-----
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [XX]:US
+State or Province Name (full name) []:VA
+Locality Name (eg, city) [Default City]:Fairfax
+Organization Name (eg, company) [Default Company Ltd]:Zork.org
+Organizational Unit Name (eg, section) []:server
+Common Name (eg, your name or your server's hostname) []:server                                       <============================
+Email Address []:yichi.lu@sungard.com
+
+Please enter the following 'extra' attributes
+to be sent with your certificate request
+A challenge password []:
+An optional company name []:
+
+# remove server key passphrase
+[root@mgr openssl]# openssl rsa -in serverkey.pem -out serverkey.pem
+writing RSA key
+[root@mgr openssl]# openssl x509 -req -in serverreq.pem -days 365 -CA serverCAcert.pem -CAkey serverCAkey.pem -set_serial 01 -out servercert.pem
+Signature ok
+subject=/C=US/ST=VA/L=Fairfax/O=Zork.org/OU=server/CN=server/emailAddress=yichi.lu@sungard.com
+Getting CA Private Key
+[root@mgr openssl]# cat servercert.pem serverkey.pem serverCAcert.pem rootcert.pem > server.pem
+[root@mgr openssl]# openssl x509 -subject -issuer -noout -in server.pem
+subject= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=server/CN=server/emailAddress=yichi.lu@sungard.com
+issuer= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=server/CN=Server CA/emailAddress=yichi.lu@sungard.com
+[root@mgr openssl]# openssl genrsa 1024 > clientkey.pem
+Generating RSA private key, 1024 bit long modulus
+...........................++++++
+.++++++
+e is 65537 (0x10001)
+[root@mgr openssl]# openssl req -newkey rsa:1024 -days 365 -nodes -keyout clientkey.pem -out clientreq.pem
+Generating a 1024 bit RSA private key
+...............................++++++
+..........................++++++
+writing new private key to 'clientkey.pem'
+-----
+You are about to be asked to enter information that will be incorporated
+into your certificate request.
+What you are about to enter is what is called a Distinguished Name or a DN.
+There are quite a few fields but you can leave some blank
+For some fields there will be a default value,
+If you enter '.', the field will be left blank.
+-----
+Country Name (2 letter code) [XX]:US
+State or Province Name (full name) []:VA
+Locality Name (eg, city) [Default City]:Fairfax
+Organization Name (eg, company) [Default Company Ltd]:Zork.org
+Organizational Unit Name (eg, section) []:client
+Common Name (eg, your name or your server's hostname) []:client                                      <=============================
+Email Address []:yichi.lu@sungard.com
+
+Please enter the following 'extra' attributes
+to be sent with your certificate request
+A challenge password []:
+An optional company name []:
+[root@mgr openssl]# openssl rsa -in clientkey.pem -out clientkey.pem
+writing RSA key
+[root@mgr openssl]# openssl x509 -req -in clientreq.pem -days 365 -CA root.pem -CAkey root.pem -set_serial 02 -out clientcert.pem
+Signature ok
+subject=/C=US/ST=VA/L=Fairfax/O=Zork.org/OU=client/CN=client/emailAddress=yichi.lu@sungard.com
+Getting CA Private Key
+[root@mgr openssl]# cat clientcert.pem clientkey.pem rootcert.pem > client.pem
+[root@mgr openssl]# openssl x509 -subject -issuer -noout -in client.pem
+subject= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=client/CN=client/emailAddress=yichi.lu@sungard.com
+issuer= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=zork/CN=Root CA/emailAddress=yichi.lu@sungard.com
+
+# create dh512.pem and dh1024.pem
+[root@mgr openssl]# openssl dhparam -check -text -5 512 -out dh512.pem
+Generating DH parameters, 512 bit long safe prime, generator 5
+This is going to take a long time
+................++*++*++*++*++*++*
+DH parameters appear to be ok.
+[root@mgr openssl]# openssl dhparam -check -text -5 1024 -out dh1024.pem
+Generating DH parameters, 1024 bit long safe prime, generator 5
+This is going to take a long time
+....+................+................................................+.................................+.................................+....+....+.............+................................................................................................+........................................................................................................................................+.....................+.....................+..........+...........+.....+....................................................................+..........+.................................................................................................+.......................................+...........................................+........................+.................................+.............................................+........................+.......................................................................................................+......+................................................+....................................................................+.................................................................................+........................................................................................................................+....................+...........+...+............................+........................+...+...........................................................................................................................................................................................................+............................................................................................................................................................................................................................................+....+.+.............................................................................................+.+......................................................................................................................+...........+......................++*++*++*
+DH parameters appear to be ok.
+
+***** Certificate Verification *****
+Signing a certificate involves using the CA's private key to sign the public key of the new certificate owner.
+Verification of a certificate involves using CA's public key to verify the signature.
+Verification of a certificate chain involves verifications of each subsequent signature in the chain until reaching
+a trusted CA certificate, or until reaching the end. Verification fails if no trusted CA is found.
+The verifying agent has a list of trusted CAs.
+
+
+terminology
+CTX:            OpenSSL context

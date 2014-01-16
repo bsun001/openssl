@@ -1,5 +1,8 @@
 /*
+    To compile:
     gcc client.c common.c -o client -lcrypto -lssl -lpthread
+
+    This code uses OpenSSL, but it does not use any SSL certificates
  */
 #include <stdlib.h>
 

@@ -90,6 +90,10 @@ int seed_prng(int bytes)
 
 int verify_callback(int ok, X509_STORE_CTX *store)
 {
+    /*
+        ok > 0: verification succeeded; ok == 0: failed
+        store:  contains information necessary to verify a certificate
+     */
     char data[256];
  
     if (!ok)

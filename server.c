@@ -1,5 +1,9 @@
 /*
+    To compile:
     gcc server.c common.c -o server -lcrypto -lssl -lpthread
+ 
+    This code uses OpenSSL, but it does not use any SSL certificates
+
  */
 #include "common.h"
  
