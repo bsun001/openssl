@@ -44,7 +44,12 @@ Generating RSA private key, 1024 bit long modulus
 .++++++
 .......++++++
 e is 65537 (0x10001)
-[root@mgr openssl]# openssl req -new -x509 -nodes -days 365 -key serverCAkey.pem -out serverCAcert.pem
+[root@mgr openssl]# openssl req -newkey rsa:1024 -days 365 -nodes -keyout serverCAkey.pem -out serverCAreq.pem
+Generating a 1024 bit RSA private key
+................++++++
+...............................................++++++
+writing new private key to 'serverCAkey.pem'
+-----
 You are about to be asked to enter information that will be incorporated
 into your certificate request.
 What you are about to enter is what is called a Distinguished Name or a DN.
@@ -57,14 +62,30 @@ State or Province Name (full name) []:VA
 Locality Name (eg, city) [Default City]:Fairfax
 Organization Name (eg, company) [Default Company Ltd]:Zork.org
 Organizational Unit Name (eg, section) []:server
-Common Name (eg, your name or your server's hostname) []:Server CA                                   <==========================
+Common Name (eg, your name or your server's hostname) []:Server CA
 Email Address []:yichi.lu@sungard.com
+
+Please enter the following 'extra' attributes
+to be sent with your certificate request
+A challenge password []:
+An optional company name []:
+i[root@mgr openssl]# openssl rsa -in serverCAkey.pem -out serverCAkey.pem
+writing RSA key
+[root@mgr openssl]# openssl x509 -req -in serverCAreq.pem -days 365 -CA root.pem -CAkey root.pem -set_serial 03 -out serverCAcert.pem
+Signature ok
+subject=/C=US/ST=VA/L=Fairfax/O=Zork.org/OU=server/CN=Server CA/emailAddress=yichi.lu@sungard.com
+Getting CA Private Key
 [root@mgr openssl]# cat serverCAcert.pem serverCAkey.pem rootcert.pem > serverCA.pem
 [root@mgr openssl]# openssl x509 -subject -issuer -noout -in serverCA.pem
 subject= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=server/CN=Server CA/emailAddress=yichi.lu@sungard.com
-issuer= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=server/CN=Server CA/emailAddress=yichi.lu@sungard.com
+issuer= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=zork/CN=Root CA/emailAddress=yichi.lu@sungard.com
 
 # Create a server certificate and sign it using Server CA:
+[root@mgr openssl]# openssl genrsa 1024 > serverkey.pem
+Generating RSA private key, 1024 bit long modulus
+..................................................++++++
+..................++++++
+e is 65537 (0x10001)
 [root@mgr openssl]# openssl req -newkey rsa:1024 -days 365 -nodes -keyout serverkey.pem -out serverreq.pem
 Generating a 1024 bit RSA private key
 ....................................++++++
@@ -102,6 +123,8 @@ Getting CA Private Key
 [root@mgr openssl]# openssl x509 -subject -issuer -noout -in server.pem
 subject= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=server/CN=server/emailAddress=yichi.lu@sungard.com
 issuer= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=server/CN=Server CA/emailAddress=yichi.lu@sungard.com
+
+# Create a server certificate and sign it using Server CA:
 [root@mgr openssl]# openssl genrsa 1024 > clientkey.pem
 Generating RSA private key, 1024 bit long modulus
 ...........................++++++
@@ -142,6 +165,18 @@ Getting CA Private Key
 [root@mgr openssl]# openssl x509 -subject -issuer -noout -in client.pem
 subject= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=client/CN=client/emailAddress=yichi.lu@sungard.com
 issuer= /C=US/ST=VA/L=Fairfax/O=Zork.org/OU=zork/CN=Root CA/emailAddress=yichi.lu@sungard.com
+
+# verify
+[root@mgr openssl]# openssl verify root.pem
+root.pem: C = US, ST = VA, L = Fairfax, O = Zork.org, OU = zork, CN = Root CA, emailAddress = yichi.lu@sungard.com
+error 18 at 0 depth lookup:self signed certificate
+OK
+[root@mgr openssl]# openssl verify -CAfile root.pem serverCA.pem
+serverCA.pem: OK
+[root@mgr openssl]# openssl verify -CAfile serverCA.pem server.pem
+server.pem: OK
+[root@mgr openssl]# openssl verify -CAfile root.pem client.pem
+client.pem: OK
 
 # create dh512.pem and dh1024.pem
 [root@mgr openssl]# openssl dhparam -check -text -5 512 -out dh512.pem

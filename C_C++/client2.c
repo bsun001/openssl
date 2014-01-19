@@ -8,8 +8,10 @@
 #include "common.h"
  
 #define CAFILE "root.pem"
-#define CADIR NULL
+//#define CADIR NULL
 #define CERTFILE "client.pem"
+//#define CAFILE NULL
+#define CADIR "/root/prog/openssl"
 SSL_CTX *setup_client_ctx(void)
 {
     SSL_CTX *ctx;
@@ -24,7 +26,9 @@ SSL_CTX *setup_client_ctx(void)
     if (SSL_CTX_use_PrivateKey_file(ctx, CERTFILE, SSL_FILETYPE_PEM) != 1)
         int_error("Error loading private key from file");
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, verify_callback);
+    int_info("client starts verification");
     SSL_CTX_set_verify_depth(ctx, 4);
+    int_info("client finishess verification");
     return ctx;
 }
  
@@ -59,6 +63,7 @@ int main(int argc, char *argv[])
  
     ctx = setup_client_ctx(  );
  
+    int_info("client starts new connection");
     conn = BIO_new_connect(SERVER ":" PORT);
     if (!conn)
         int_error("Error creating connection BIO");
@@ -66,10 +71,21 @@ int main(int argc, char *argv[])
     if (BIO_do_connect(conn) <= 0)
         int_error("Error connecting to remote machine");
  
+    int_info("From client2. Calling SSL_new()");
     ssl = SSL_new(ctx);
+    int_info("From client2. Calling SSL_set_bio()");
     SSL_set_bio(ssl, conn, conn);
-    if (SSL_connect(ssl) <= 0)
+    if (SSL_connect(ssl) <= 0) {
+        const long double sysTime = time(0);
+        printf("Current time: %Lf seconds since the Epoch\n", sysTime);
+        struct timeb tmb;
+        ftime(&tmb);
+        printf("tmb.time     = %ld (seconds)\n", tmb.time);
+        printf("tmb.millitm  = %d (mlliseconds)\n", tmb.millitm);
+//      sprintf(str, "client current time: %s", current_time);
+//      int_info(str);
         int_error("Error connecting SSL object");
+    }
     if ((err = post_connection_check(ssl, SERVER)) != X509_V_OK)
     {
         fprintf(stderr, "-Error: peer certificate: %s\n",

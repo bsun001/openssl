@@ -17,7 +17,9 @@
 #include <strings.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/timeb.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 
@@ -42,6 +44,8 @@
 #define CLIENT          "localhost"
 #define READSIZE 1024
 
+#define int_info(msg)  handle_info(__FILE__, __LINE__, msg)
+void handle_info(const char *file, int lineno, const char *msg);
 #define int_error(msg)  handle_error(__FILE__, __LINE__, msg)
 void handle_error(const char *file, int lineno, const char *msg);
 int seed_prng(int bytes);
