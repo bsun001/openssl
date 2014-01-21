@@ -13,36 +13,42 @@ static int check(X509_STORE *ctx, const char *file);
 
 int verify(const char* certfile, const char* CAfile[], const int CAfilesize)
 {
-    int ret=0, i;
-    X509_STORE *cert_ctx=NULL;                        /* X.509 certificate store, used for chain verification */
-    X509_LOOKUP *lookup=NULL;                         /**/ 
+    int ret = 0, i;
+    X509_STORE *cert_ctx = NULL;                        /* X.509 certificate store, used for chain verification */
+    X509_LOOKUP *lookup = NULL;                         /**/ 
 
-    cert_ctx=X509_STORE_new();
+    /* initialize X509 certificate store */
+    cert_ctx = X509_STORE_new();
     if (cert_ctx == NULL) goto end;
 
+    /* load all digest and cipher algorithms */
     OpenSSL_add_all_algorithms();
 
-    lookup=X509_STORE_add_lookup(cert_ctx,X509_LOOKUP_file());
+    /* prepare to load files */
+    lookup = X509_STORE_add_lookup(cert_ctx, X509_LOOKUP_file());
     if (lookup == NULL) {
         printf("X509_STORE_add_lookup(cert_ctx,X509_LOOKUP_file()) Failed\n");
         goto end;
     }
 
+    /* load CA files into store */
     for (i = 0; i < CAfilesize; i++) {
-        if(!X509_LOOKUP_load_file(lookup,CAfile[i],X509_FILETYPE_PEM)) {
+        if(!X509_LOOKUP_load_file(lookup, CAfile[i], X509_FILETYPE_PEM)) {
             printf("X509_LOOKUP_load_file() Failed. CAfile: %s\n", CAfile[i]);
             goto end;
         }
     }
 
-    lookup=X509_STORE_add_lookup(cert_ctx,X509_LOOKUP_hash_dir());
+    /* prepare to load file directory */
+    lookup = X509_STORE_add_lookup(cert_ctx, X509_LOOKUP_hash_dir());
     if (lookup == NULL) {
         printf("X509_STORE_add_lookup(cert_ctx,X509_LOOKUP_hash_dir()) Failed\n");
         goto end;
     }
 
-    X509_LOOKUP_add_dir(lookup,NULL,X509_FILETYPE_DEFAULT);
+    X509_LOOKUP_add_dir(lookup, NULL, X509_FILETYPE_DEFAULT);
 
+    /* check certificate */
     ret = check(cert_ctx, certfile);
 end:
     if (cert_ctx != NULL) X509_STORE_free(cert_ctx);
@@ -52,20 +58,20 @@ end:
 
 static X509 *load_cert(const char *file)
 {
-    X509 *x=NULL;
+    X509 *x = NULL;
     BIO *cert;
 
-    if ((cert=BIO_new(BIO_s_file())) == NULL) {
+    if ((cert = BIO_new(BIO_s_file())) == NULL) {
         printf("BIO_new(BIO_s_file()) Failed\n");
         goto end;
     }
 
-    if (BIO_read_filename(cert,file) <= 0) {
-        printf("BIO_read_filename(cert,file)  Failed\n");
+    if (BIO_read_filename(cert, file) <= 0) {
+        printf("BIO_read_filename(cert, file)  Failed\n");
         goto end;
     }
 
-    x=PEM_read_bio_X509_AUX(cert,NULL, NULL, NULL);
+    x = PEM_read_bio_X509_AUX(cert, NULL, NULL, NULL);
 end:
     if (cert != NULL) BIO_free(cert);
     return(x);
@@ -73,8 +79,8 @@ end:
 
 static int check(X509_STORE *ctx, const char *file)
 {
-    X509 *x=NULL;
-    int i=0,ret=0;
+    X509 *x = NULL;
+    int i = 0,ret = 0;
     X509_STORE_CTX *csc;
 
     x = load_cert(file);
@@ -83,16 +89,20 @@ static int check(X509_STORE *ctx, const char *file)
         goto end;
     }
 
+    /* X509 store context */
     csc = X509_STORE_CTX_new();
     if (csc == NULL) {
         printf("X509_STORE_CTX_new() Failed\n");
         goto end;
     }
+    /* set X509 store flags */
     X509_STORE_set_flags(ctx, 0);
-    if(!X509_STORE_CTX_init(csc,ctx,x,0)) {
+    if(!X509_STORE_CTX_init(csc, ctx, x, 0)) {
         printf("X509_STORE_set_flags(ctx, 0) Failed\n");
         goto end;
     }
+
+    /* verify certificate */
     i=X509_verify_cert(csc);
     if (i == 0) {
         BIO* outbio = BIO_new(BIO_s_file());

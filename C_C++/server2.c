@@ -9,28 +9,64 @@
  
 #define CAFILE1 "root.pem"
 #define CAFILE2 "serverCA.pem"
-//#define CAFILE NULL
 #define CADIR NULL
-//#define CADIR "/root/prog/openssl"
 #define CERTFILE "server.pem"
+#define KEYFILE "serverkey.pem"
+#define CIPHERLIST "AES128-SHA"
+#define PASSWORD "hello"
+
 SSL_CTX *setup_server_ctx(void)
 {
     SSL_CTX *ctx;
- 
+    STACK_OF(X509_NAME) *cert_names;
+
+    /* initialize SSL libraries */ 
+    SSL_library_init();
+
+    /* set SSLv23 for connection() */
     ctx = SSL_CTX_new(SSLv23_method(  ));
-    if (SSL_CTX_load_verify_locations(ctx, CAFILE1, CADIR) != 1)
-        int_error("Error loading CA file and/or directory");
-    if (SSL_CTX_set_default_verify_paths(ctx) != 1)
-        int_error("Error loading default CA file and/or directory");
-    if (SSL_CTX_use_certificate_chain_file(ctx, CERTFILE) != 1)
+    if (!ctx)
+        int_error("Error creating SSL context");
+
+    /* set cipher list */
+    if (SSL_CTX_set_cipher_list(ctx, CIPHERLIST) <= 0) {
+        int_error("Error setting the cipher list.");
+    }
+
+    /* set certificate */
+    if (SSL_CTX_use_certificate_file(ctx, CERTFILE, SSL_FILETYPE_PEM) != 1)
         int_error("Error loading certificate from file");
-    if (SSL_CTX_use_PrivateKey_file(ctx, CERTFILE, SSL_FILETYPE_PEM) != 1)
-        int_error("Error loading private key from file");
-    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER|SSL_VERIFY_FAIL_IF_NO_PEER_CERT,
-                       verify_callback);
-    int_info("server starts verification");
-    SSL_CTX_set_verify_depth(ctx, 4);
-    int_info("server finishes verification");
+    /* load password */
+    SSL_CTX_set_default_passwd_cb_userdata(ctx, PASSWORD);
+
+    /*Indicate the key file to be used*/
+    if (SSL_CTX_use_PrivateKey_file(ctx, KEYFILE, SSL_FILETYPE_PEM) <= 0) {
+        int_error("Error setting the key file.");
+    }
+
+    /*Make sure the key and certificate file match*/
+    if (SSL_CTX_check_private_key(ctx) == 0)
+        int_error("Private key does not match the certificate public key");
+    else
+        int_info("Private key matches the certificate public key\n");
+
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL); // verify_callback);
+
+    /* Load certificates of trusted CAs based on file provided*/
+//  if (SSL_CTX_load_verify_locations(ctx, CAFILE1, CADIR) != 1)
+//      int_error("Error loading CA file and/or directory");
+
+    /* Set CA list used for client authentication. */
+    if ((cert_names = SSL_load_client_CA_file(CAFILE1))  == NULL) {
+        int_error("Error loading CA file CAFILE.");
+    }
+    SSL_CTX_set_client_CA_list(ctx, cert_names);
+    if ((cert_names = SSL_load_client_CA_file(CAFILE2))  == NULL) {
+        int_error("Error loading CA file CAFILE.");
+    }
+    SSL_CTX_set_client_CA_list(ctx, cert_names);
+
+    SSL_CTX_set_verify_depth(ctx, 0);
     return ctx;
 }
  
@@ -99,7 +135,6 @@ int main(int argc, char *argv[])
     SSL_CTX *ctx;
     THREAD_TYPE tid;
 
-    init_OpenSSL(  );
     seed_prng( 1024 );
  
     ctx = setup_server_ctx(  );
@@ -118,7 +153,7 @@ int main(int argc, char *argv[])
  
         client = BIO_pop(acc);
         if (!(ssl = SSL_new(ctx)))
-        int_error("Error creating SSL context");
+            int_error("Error creating SSL context");
         SSL_set_accept_state(ssl);
         SSL_set_bio(ssl, client, client);
         THREAD_CREATE(tid, server_thread, ssl);
