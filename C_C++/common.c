@@ -134,17 +134,24 @@ long post_connection_check(SSL *ssl, char *host)
      * if the examples are modified to enable anonymous ciphers or for the server
      * to not require a client certificate.
      */
-    if (!(cert = SSL_get_peer_certificate(ssl)) || !host)
+    if (!(cert = SSL_get_peer_certificate(ssl)) || !host) {
+        printf("SSL_get_peer_certificate(ssl) failed. host: %s\n", host);
         goto err_occured;
+    }
+    else {
+        printf("got peer certificate\n");
+    }
     if ((extcount = X509_get_ext_count(cert)) > 0)
     {
         int i;
  
+        printf("number of extension count: %d\n", extcount);
         for (i = 0;  i < extcount;  i++)
         {
             char              *extstr;
             X509_EXTENSION    *ext;
  
+            /* get certificate extension */
             ext = X509_get_ext(cert, i);
             extstr = (char *) OBJ_nid2sn(OBJ_obj2nid(X509_EXTENSION_get_object(ext)));
  
@@ -177,13 +184,17 @@ long post_connection_check(SSL *ssl, char *host)
                 break;
         }
     }
+    else {
+        printf("X.509 extension count: %d\n", extcount);
+    }
  
     if (!ok && (subj = X509_get_subject_name(cert)) &&
-        X509_NAME_get_text_by_NID(subj, NID_commonName, data, 256) > 0)
+        (ok = X509_NAME_get_text_by_NID(subj, NID_commonName, data, 256)) > 0)
     {
         data[255] = 0;
-        if (strcasecmp(data, host) != 0)
-            goto err_occured;
+        if (strcasecmp(data, host) != 0) {
+            printf("strcasecmp(data, host) != 0. host: %s, peer data: %s\n", host, data);
+        }
     }
  
     X509_free(cert);
