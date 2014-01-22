@@ -200,3 +200,9 @@ The verifying agent has a list of trusted CAs.
 
 terminology
 CTX:            OpenSSL context
+
+
+Add intermediate CA as cert file to server2.c.
+
+An SSL connection refers to the process of communication, an active conversation.
+An SSL session refers to the parameters used in the conection. For instance, encryption keys.
